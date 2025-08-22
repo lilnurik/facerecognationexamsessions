@@ -36,12 +36,38 @@ class FaceRecognitionEngine:
             else:
                 image = image_path_or_array
             
-            # Find face locations
-            face_locations = face_recognition.face_locations(image, model=Config.FACE_RECOGNITION_MODEL)
-            num_faces = len(face_locations)
+            # Try multiple approaches for face detection
+            face_locations = None
+            num_faces = 0
+            
+            # First try with default model
+            try:
+                face_locations = face_recognition.face_locations(image, model=Config.FACE_RECOGNITION_MODEL)
+                num_faces = len(face_locations)
+                logger.debug(f"Face detection with {Config.FACE_RECOGNITION_MODEL} model: found {num_faces} faces")
+            except Exception as e:
+                logger.warning(f"Face detection with {Config.FACE_RECOGNITION_MODEL} model failed: {e}")
+            
+            # If no faces found and using 'large' model, try 'hog' model (faster, different approach)
+            if num_faces == 0 and Config.FACE_RECOGNITION_MODEL == 'large':
+                try:
+                    face_locations = face_recognition.face_locations(image, model='hog')
+                    num_faces = len(face_locations)
+                    logger.debug(f"Face detection with hog model: found {num_faces} faces")
+                except Exception as e:
+                    logger.warning(f"Face detection with hog model failed: {e}")
+            
+            # If still no faces, try with upsampling
+            if num_faces == 0:
+                try:
+                    face_locations = face_recognition.face_locations(image, number_of_times_to_upsample=1, model='hog')
+                    num_faces = len(face_locations)
+                    logger.debug(f"Face detection with upsampling: found {num_faces} faces")
+                except Exception as e:
+                    logger.warning(f"Face detection with upsampling failed: {e}")
             
             if num_faces == 0:
-                logger.warning("No faces found in image")
+                logger.warning("No faces found in image after trying multiple detection methods")
                 return None, 0
             
             if num_faces > 1:
@@ -55,7 +81,9 @@ class FaceRecognitionEngine:
                 return None, 0
                 
             # Return first encoding
-            return face_encodings[0], num_faces
+            encoding = face_encodings[0]
+            logger.debug(f"Successfully extracted face encoding with shape: {encoding.shape}")
+            return encoding, num_faces
             
         except Exception as e:
             logger.error(f"Error extracting face encoding: {e}")
@@ -174,15 +202,16 @@ class FaceRecognitionEngine:
             return
         
         try:
-            # Use NearestNeighbors for fast search
+            # Use NearestNeighbors for fast search with cosine distance
+            # face_recognition uses cosine similarity, so we should use cosine distance
             self.nn_model = NearestNeighbors(
                 n_neighbors=1,
                 algorithm='auto',
-                metric='euclidean'
+                metric='cosine'
             )
             self.nn_model.fit(self.embeddings)
             
-            logger.info("Built search index successfully")
+            logger.info("Built search index successfully with cosine metric")
         except Exception as e:
             logger.error(f"Error building search index: {e}")
             self.nn_model = None
@@ -193,6 +222,8 @@ class FaceRecognitionEngine:
         Returns: (student_id, distance) or (None, None) if no match
         """
         if self.embeddings is None or self.nn_model is None or query_encoding is None:
+            logger.warning("Cannot search: embeddings=%s, nn_model=%s, query_encoding=%s", 
+                         self.embeddings is not None, self.nn_model is not None, query_encoding is not None)
             return None, None
         
         try:
@@ -201,6 +232,8 @@ class FaceRecognitionEngine:
             
             distance = distances[0][0]
             index = indices[0][0]
+            
+            logger.info(f"Face search: distance={distance:.4f}, threshold={self.threshold}, index={index}")
             
             # Check if distance is within threshold
             if distance <= self.threshold:
@@ -221,7 +254,9 @@ class FaceRecognitionEngine:
             'total_embeddings': len(self.embeddings) if self.embeddings is not None else 0,
             'threshold': self.threshold,
             'index_ready': self.nn_model is not None,
-            'cache_exists': os.path.exists(Config.EMBEDDINGS_CACHE_PATH)
+            'cache_exists': os.path.exists(Config.EMBEDDINGS_CACHE_PATH),
+            'distance_metric': 'cosine',  # Now using cosine distance
+            'face_model': Config.FACE_RECOGNITION_MODEL
         }
 
 # Global face recognition engine instance
