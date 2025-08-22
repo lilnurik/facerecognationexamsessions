@@ -41,11 +41,11 @@ def test_bruteforce_search(embeddings, query_embeddings, threshold=0.5):
     
     return times, np.mean(times), np.std(times)
 
-def test_sklearn_search(embeddings, query_embeddings, threshold=0.5):
+def test_sklearn_search(embeddings, query_embeddings, threshold=0.4):
     """Test sklearn NearestNeighbors search performance"""
-    # Build index
+    # Build index with cosine distance (matching face_utils.py)
     start_build = time.time()
-    nn_model = NearestNeighbors(n_neighbors=1, algorithm='auto', metric='euclidean')
+    nn_model = NearestNeighbors(n_neighbors=1, algorithm='auto', metric='cosine')
     nn_model.fit(embeddings)
     build_time = time.time() - start_build
     
