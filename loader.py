@@ -185,6 +185,8 @@ class ExcelLoader:
                     logger.error(error_msg)
                     errors.append(error_msg)
                     records_skipped += 1
+                    # Reset session state after database errors (e.g., UNIQUE constraint violations)
+                    db.rollback()
                     continue
             
             # Final commit
