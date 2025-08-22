@@ -9,7 +9,7 @@
 - Всё должно устанавливаться через `requirements.txt`.
 
 2) Структура проекта (сгенерируй файлы и папки)
-```
+
 
 project/
 ├── app.py                     # точка входа Flask
@@ -29,7 +29,7 @@ project/
 │   └── photos/                # папка с фотографиями (пути в Excel)
 └── requirements.txt
 
-```
+
 
 3) Описание Excel и массовой загрузки
 - Ожидаемый Excel: `Face ID docs/list of students.xlsx` с колонками (точно):  
