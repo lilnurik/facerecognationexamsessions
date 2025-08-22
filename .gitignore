@@ -130,6 +130,10 @@ data/embeddings.npy
 data/embeddings_metadata.json
 create_sample_excel.py
 
+# Test files created during development
+test_loader_fix.py
+issue_demonstration.py
+
 # Face ID docs - keep structure but ignore actual files
 Face ID docs/photos/*
 !Face ID docs/photos/.gitkeep
