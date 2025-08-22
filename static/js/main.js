@@ -169,31 +169,22 @@ class FaceRecognitionApp {
         
         switch (data.status) {
             case 'ok':
+                // Show modal for successful recognition
+                this.showStudentModal(data.student, 'first-time', data);
                 resultClass = 'success';
                 resultHtml = `
                     <h3>✅ Студент успешно идентифицирован</h3>
-                    <div class="student-info">
-                        <h3>${data.student.firstname} ${data.student.lastname}</h3>
-                        <p><strong>Матрикула:</strong> ${data.student.matricula || 'Не указана'}</p>
-                        <p><strong>Группа:</strong> ${data.student.group_name || 'Не указана'}</p>
-                        <p><strong>Идентификатор:</strong> ${data.student.identifier || 'Не указан'}</p>
-                        <p><strong>Время прохода:</strong> ${new Date(data.pass_time).toLocaleString('ru-RU')}</p>
-                        <p><strong>Точность:</strong> ${data.confidence}</p>
-                    </div>
+                    <p>Информация отображена в модальном окне</p>
                 `;
                 break;
                 
             case 'already_passed':
+                // Show modal for repeat visit
+                this.showStudentModal(data.student, 'repeat', data);
                 resultClass = 'warning';
                 resultHtml = `
                     <h3>⚠️ Студент уже проходил сегодня</h3>
-                    <div class="student-info">
-                        <h3>${data.student.firstname} ${data.student.lastname}</h3>
-                        <p><strong>Матрикула:</strong> ${data.student.matricula || 'Не указана'}</p>
-                        <p><strong>Группа:</strong> ${data.student.group_name || 'Не указана'}</p>
-                        <p><strong>Время первого прохода:</strong> ${new Date(data.first_pass_time).toLocaleString('ru-RU')}</p>
-                        <p><strong>Точность текущего распознавания:</strong> ${data.confidence}</p>
-                    </div>
+                    <p>Информация отображена в модальном окне</p>
                 `;
                 break;
                 
@@ -240,6 +231,73 @@ class FaceRecognitionApp {
         // Disable buttons during loading
         this.takePhotoBtn.disabled = show || !this.stream;
         this.uploadPhotoBtn.disabled = show || !this.fileInput.files[0];
+    }
+    
+    showStudentModal(student, visitType, data) {
+        const modal = document.getElementById('studentModal');
+        const modalContent = document.getElementById('modalContent');
+        
+        const isFirstTime = visitType === 'first-time';
+        const passTime = isFirstTime ? data.pass_time : data.first_pass_time;
+        const statusText = isFirstTime ? 
+            'Первое посещение сегодня' : 
+            `Повторное посещение (первый раз в ${new Date(data.first_pass_time).toLocaleTimeString('ru-RU')})`;
+        
+        modalContent.innerHTML = `
+            <h2>${isFirstTime ? '✅' : '⚠️'} ${student.firstname} ${student.lastname}</h2>
+            
+            <div class="pass-status ${visitType}">
+                <strong>${statusText}</strong><br>
+                Текущее время: ${new Date(passTime).toLocaleString('ru-RU')}
+            </div>
+            
+            <div class="student-details">
+                <div class="student-detail">
+                    <label>Матрикула:</label>
+                    <value>${student.matricula || 'Не указана'}</value>
+                </div>
+                <div class="student-detail">
+                    <label>Группа:</label>
+                    <value>${student.group_name || 'Не указана'}</value>
+                </div>
+                <div class="student-detail">
+                    <label>Идентификатор:</label>
+                    <value>${student.identifier || 'Не указан'}</value>
+                </div>
+                <div class="student-detail">
+                    <label>Дата рождения:</label>
+                    <value>${student.date_of_birth || 'Не указана'}</value>
+                </div>
+                <div class="student-detail">
+                    <label>Номер паспорта:</label>
+                    <value>${student.passport_number || 'Не указан'}</value>
+                </div>
+                <div class="student-detail">
+                    <label>Точность распознавания:</label>
+                    <value>${data.confidence}</value>
+                </div>
+            </div>
+        `;
+        
+        modal.style.display = 'block';
+        
+        // Auto-close after 10 seconds
+        setTimeout(() => {
+            modal.style.display = 'none';
+        }, 10000);
+    }
+}
+
+// Global function to close modal
+function closeModal() {
+    document.getElementById('studentModal').style.display = 'none';
+}
+
+// Close modal when clicking outside of it
+window.onclick = function(event) {
+    const modal = document.getElementById('studentModal');
+    if (event.target === modal) {
+        modal.style.display = 'none';
     }
 }
 

@@ -146,11 +146,117 @@
             background: #d4edda;
             color: #155724;
         }
+        
+        /* Modal styles for student information */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 30px;
+            border: none;
+            border-radius: 10px;
+            width: 80%;
+            max-width: 600px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            animation: modalSlideIn 0.3s ease;
+        }
+        
+        @keyframes modalSlideIn {
+            from { opacity: 0; transform: translateY(-50px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .modal-close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 1;
+        }
+        
+        .modal-close:hover,
+        .modal-close:focus {
+            color: #000;
+            text-decoration: none;
+        }
+        
+        .student-modal-info {
+            text-align: center;
+            margin-top: 20px;
+        }
+        
+        .student-modal-info h2 {
+            color: #4CAF50;
+            margin-bottom: 20px;
+            font-size: 2em;
+        }
+        
+        .student-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 20px 0;
+            text-align: left;
+        }
+        
+        .student-detail {
+            background: #f9f9f9;
+            padding: 10px;
+            border-radius: 5px;
+            border-left: 4px solid #4CAF50;
+        }
+        
+        .student-detail label {
+            font-weight: bold;
+            color: #333;
+            display: block;
+            margin-bottom: 5px;
+        }
+        
+        .student-detail value {
+            color: #666;
+        }
+        
+        .pass-status {
+            background: #e3f2fd;
+            border: 1px solid #90caf9;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        .pass-status.first-time {
+            background: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+        
+        .pass-status.repeat {
+            background: #fff3cd;
+            border-color: #ffeaa7;
+            color: #856404;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Система распознавания лиц для экзаменов</h1>
+        
+        <div style="text-align: right; margin-bottom: 10px;">
+            <a href="/admin" style="color: #666; text-decoration: none;">Административная панель</a>
+        </div>
         
         <div id="status" class="status offline">
             Проверка соединения...
@@ -186,6 +292,16 @@
         
         <div id="result" class="result">
             <div id="resultContent"></div>
+        </div>
+    </div>
+
+    <!-- Student Information Modal -->
+    <div id="studentModal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeModal()">&times;</span>
+            <div id="modalContent" class="student-modal-info">
+                <!-- Content will be populated by JavaScript -->
+            </div>
         </div>
     </div>
 
