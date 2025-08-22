@@ -54,6 +54,11 @@ def index():
     """Main page with camera interface"""
     return render_template('index.html')
 
+@app.route('/admin')
+def admin_panel():
+    """Admin panel for system management"""
+    return render_template('admin.html')
+
 @app.route('/api/recognize', methods=['POST'])
 def recognize_face():
     """Recognize face from uploaded image"""
@@ -97,6 +102,7 @@ def recognize_face():
         try:
             student = db.query(Student).filter_by(id=student_id).first()
             if not student:
+                logger.error(f"Student not found in database: student_id={student_id}")
                 return jsonify({
                     'status': 'error',
                     'message': 'Ошибка получения данных студента'
@@ -104,11 +110,19 @@ def recognize_face():
             
             # Check if student already passed today
             today = date.today()
-            existing_pass = db.query(Pass).filter(
-                Pass.student_id == student_id,
-                Pass.timestamp >= datetime.combine(today, datetime.min.time()),
-                Pass.timestamp < datetime.combine(today, datetime.max.time())
-            ).first()
+            try:
+                existing_pass = db.query(Pass).filter(
+                    Pass.student_id == student_id,
+                    Pass.timestamp >= datetime.combine(today, datetime.min.time()),
+                    Pass.timestamp < datetime.combine(today, datetime.max.time())
+                ).first()
+            except Exception as e:
+                logger.error(f"Error checking existing pass for student {student_id}: {e}")
+                db.rollback()
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Ошибка проверки предыдущих проходов'
+                }), 500
             
             if existing_pass:
                 return jsonify({
@@ -120,22 +134,30 @@ def recognize_face():
                 })
             
             # Record new pass
-            new_pass = Pass(
-                student_id=student_id,
-                timestamp=datetime.utcnow(),
-                source='camera',
-                confidence=f'{distance:.4f}'
-            )
-            db.add(new_pass)
-            db.commit()
-            
-            return jsonify({
-                'status': 'ok',
-                'message': 'Студент успешно идентифицирован',
-                'student': student.to_dict(),
-                'pass_time': new_pass.timestamp.isoformat(),
-                'confidence': f'{distance:.4f}'
-            })
+            try:
+                new_pass = Pass(
+                    student_id=student_id,
+                    timestamp=datetime.utcnow(),
+                    source='camera',
+                    confidence=f'{distance:.4f}'
+                )
+                db.add(new_pass)
+                db.commit()
+                
+                return jsonify({
+                    'status': 'ok',
+                    'message': 'Студент успешно идентифицирован',
+                    'student': student.to_dict(),
+                    'pass_time': new_pass.timestamp.isoformat(),
+                    'confidence': f'{distance:.4f}'
+                })
+            except Exception as e:
+                logger.error(f"Error creating new pass for student {student_id}: {e}")
+                db.rollback()
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Ошибка записи прохода'
+                }), 500
             
         finally:
             db.close()
@@ -337,6 +359,91 @@ def rebuild_index():
     
     finally:
         db.close()
+
+@app.route('/admin/add_student', methods=['POST'])
+def add_student():
+    """Add a new student via admin interface"""
+    require_admin_token()
+    
+    try:
+        # Get form data
+        matricula = request.form.get('matricula')
+        lastname = request.form.get('lastname')
+        firstname = request.form.get('firstname')
+        
+        if not all([matricula, lastname, firstname]):
+            return jsonify({
+                'status': 'error',
+                'message': 'Матрикула, фамилия и имя обязательны'
+            }), 400
+        
+        db = get_db_session()
+        try:
+            # Check if student already exists
+            existing = db.query(Student).filter(
+                (Student.matricula == matricula) | 
+                (Student.identifier == request.form.get('identifier'))
+            ).first()
+            
+            if existing:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Студент с такой матрикулой или идентификатором уже существует'
+                }), 400
+            
+            # Create new student
+            student = Student(
+                matricula=matricula,
+                lastname=lastname,
+                firstname=firstname,
+                lotin=request.form.get('lotin', ''),
+                short=request.form.get('short', ''),
+                group_name=request.form.get('group_name', ''),
+                identifier=request.form.get('identifier', ''),
+                date_of_birth=request.form.get('date_of_birth', ''),
+                passport_number=request.form.get('passport_number', '')
+            )
+            
+            # Handle photo upload if provided
+            if 'photo' in request.files:
+                photo_file = request.files['photo']
+                if photo_file.filename != '':
+                    # Process photo and extract face encoding
+                    try:
+                        image_data = photo_file.read()
+                        encoding, num_faces = face_engine.process_uploaded_image(image_data)
+                        
+                        if encoding is not None and num_faces == 1:
+                            import pickle
+                            student.face_encoding = pickle.dumps(encoding)
+                            logger.info(f"Face encoding extracted for new student {matricula}")
+                        else:
+                            logger.warning(f"Could not extract face encoding for new student {matricula}: faces={num_faces}")
+                    except Exception as e:
+                        logger.error(f"Error processing photo for student {matricula}: {e}")
+            
+            db.add(student)
+            db.commit()
+            
+            # Rebuild face recognition index if face encoding was added
+            if student.face_encoding:
+                face_engine.rebuild_index(db)
+            
+            return jsonify({
+                'status': 'success',
+                'message': 'Студент добавлен успешно',
+                'student_id': student.id
+            })
+            
+        finally:
+            db.close()
+    
+    except Exception as e:
+        logger.error(f"Error in add_student: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': 'Внутренняя ошибка сервера'
+        }), 500
 
 @app.errorhandler(401)
 def unauthorized(error):

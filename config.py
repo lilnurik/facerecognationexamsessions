@@ -9,7 +9,7 @@ class Config:
     DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite:///database.db')
     
     # Face recognition settings
-    FACE_RECOGNITION_THRESHOLD = float(os.getenv('FACE_RECOGNITION_THRESHOLD', '0.4'))  # Adjusted for cosine distance
+    FACE_RECOGNITION_THRESHOLD = float(os.getenv('FACE_RECOGNITION_THRESHOLD', '0.45'))  # Slightly increased for better tolerance to appearance changes
     FACE_RECOGNITION_MODEL = os.getenv('FACE_RECOGNITION_MODEL', 'large')  # small, large
     
     # Admin settings

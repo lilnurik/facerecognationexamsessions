@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Административная панель - Face Recognition</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1, h2 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: #f9f9f9;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+        .btn-danger {
+            background: #f44336;
+        }
+        .btn-danger:hover {
+            background: #da190b;
+        }
+        .btn-info {
+            background: #2196F3;
+        }
+        .btn-info:hover {
+            background: #1976D2;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            text-align: center;
+            border: 1px solid #ddd;
+        }
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+        .stat-label {
+            color: #666;
+            margin-top: 5px;
+        }
+        .result {
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 5px;
+            display: none;
+        }
+        .result.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .result.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .result.info {
+            background: #cce7ff;
+            color: #004085;
+            border: 1px solid #b3d7ff;
+        }
+        .auth-section {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .token-input {
+            width: 300px;
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+        }
+        .hidden {
+            display: none;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        .file-input {
+            margin: 10px 0;
+        }
+        .student-form {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            max-width: 600px;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        .form-group label {
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+        .form-group input {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            font-size: 14px;
+        }
+        .form-group.full-width {
+            grid-column: 1 / -1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Административная панель</h1>
+        
+        <div class="auth-section">
+            <h3>Аутентификация</h3>
+            <p>Введите токен администратора для доступа к функциям управления:</p>
+            <input type="password" id="adminToken" class="token-input" placeholder="Токен администратора">
+            <button onclick="authenticateAdmin()">Войти</button>
+        </div>
+        
+        <div id="adminContent" class="hidden">
+            <!-- Statistics Section -->
+            <div class="section">
+                <h2>Статистика системы</h2>
+                <button onclick="loadStats()" class="btn-info">Обновить статистику</button>
+                <div id="statsResult" class="result"></div>
+                <div id="statsDisplay" class="stats-grid"></div>
+            </div>
+            
+            <!-- Reports Section -->
+            <div class="section">
+                <h2>Отчеты</h2>
+                <p>Экспорт данных о проходах студентов:</p>
+                <div>
+                    <label>Дата начала: <input type="date" id="startDate"></label>
+                    <label>Дата окончания: <input type="date" id="endDate"></label>
+                </div>
+                <button onclick="exportReport()" class="btn-info">Экспортировать отчет</button>
+                <div id="reportResult" class="result"></div>
+            </div>
+            
+            <!-- Student Management Section -->
+            <div class="section">
+                <h2>Управление студентами</h2>
+                
+                <h3>Добавить нового студента</h3>
+                <div class="student-form">
+                    <div class="form-group">
+                        <label for="matricula">Матрикула *</label>
+                        <input type="text" id="matricula" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="lastname">Фамилия *</label>
+                        <input type="text" id="lastname" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="firstname">Имя *</label>
+                        <input type="text" id="firstname" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="group_name">Группа</label>
+                        <input type="text" id="group_name">
+                    </div>
+                    <div class="form-group">
+                        <label for="identifier">Идентификатор</label>
+                        <input type="text" id="identifier">
+                    </div>
+                    <div class="form-group">
+                        <label for="date_of_birth">Дата рождения</label>
+                        <input type="date" id="date_of_birth">
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="passport_number">Номер паспорта</label>
+                        <input type="text" id="passport_number">
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="student_photo">Фото студента</label>
+                        <input type="file" id="student_photo" accept="image/*">
+                    </div>
+                </div>
+                <button onclick="addStudent()">Добавить студента</button>
+                <div id="studentResult" class="result"></div>
+                
+                <h3>Загрузка из Excel</h3>
+                <p>Загрузите файл Excel со списком студентов:</p>
+                <div class="file-input">
+                    <input type="file" id="excelFile" accept=".xlsx,.xls">
+                    <label>
+                        <input type="checkbox" id="forceLoad"> 
+                        Принудительная загрузка (перезаписать существующих)
+                    </label>
+                </div>
+                <button onclick="loadExcel()">Загрузить Excel</button>
+                <div id="excelResult" class="result"></div>
+            </div>
+            
+            <!-- System Management Section -->
+            <div class="section">
+                <h2>Управление системой</h2>
+                <p>Пересборка индекса распознавания лиц:</p>
+                <button onclick="rebuildIndex()" class="btn-danger">Пересобрать индекс</button>
+                <div id="rebuildResult" class="result"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let adminToken = '';
+        
+        function authenticateAdmin() {
+            adminToken = document.getElementById('adminToken').value;
+            if (!adminToken) {
+                alert('Введите токен администратора');
+                return;
+            }
+            
+            // Test the token by calling stats endpoint
+            fetch(`/admin/stats?token=${adminToken}`)
+                .then(response => {
+                    if (response.ok) {
+                        document.querySelector('.auth-section').style.display = 'none';
+                        document.getElementById('adminContent').classList.remove('hidden');
+                        loadStats(); // Load initial stats
+                    } else {
+                        alert('Неверный токен администратора');
+                    }
+                })
+                .catch(error => {
+                    alert('Ошибка подключения к серверу');
+                });
+        }
+        
+        function loadStats() {
+            fetch(`/admin/stats?token=${adminToken}`)
+                .then(response => response.json())
+                .then(data => {
+                    const statsDisplay = document.getElementById('statsDisplay');
+                    const statsResult = document.getElementById('statsResult');
+                    
+                    if (data.error) {
+                        showResult('statsResult', 'error', data.error);
+                        return;
+                    }
+                    
+                    statsDisplay.innerHTML = `
+                        <div class="stat-card">
+                            <div class="stat-number">${data.students.total}</div>
+                            <div class="stat-label">Всего студентов</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">${data.students.with_encodings}</div>
+                            <div class="stat-label">С кодировками лиц</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">${data.passes.total}</div>
+                            <div class="stat-label">Всего проходов</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">${data.passes.today}</div>
+                            <div class="stat-label">Проходов сегодня</div>
+                        </div>
+                    `;
+                    
+                    showResult('statsResult', 'success', 'Статистика обновлена');
+                })
+                .catch(error => {
+                    showResult('statsResult', 'error', 'Ошибка загрузки статистики: ' + error.message);
+                });
+        }
+        
+        function exportReport() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            
+            let url = `/admin/export_report?token=${adminToken}`;
+            if (startDate) url += `&start_date=${startDate}`;
+            if (endDate) url += `&end_date=${endDate}`;
+            
+            window.open(url, '_blank');
+            showResult('reportResult', 'info', 'Отчет экспортируется...');
+        }
+        
+        function addStudent() {
+            const formData = new FormData();
+            formData.append('token', adminToken);
+            formData.append('matricula', document.getElementById('matricula').value);
+            formData.append('lastname', document.getElementById('lastname').value);
+            formData.append('firstname', document.getElementById('firstname').value);
+            formData.append('group_name', document.getElementById('group_name').value);
+            formData.append('identifier', document.getElementById('identifier').value);
+            formData.append('date_of_birth', document.getElementById('date_of_birth').value);
+            formData.append('passport_number', document.getElementById('passport_number').value);
+            
+            const photoFile = document.getElementById('student_photo').files[0];
+            if (photoFile) {
+                formData.append('photo', photoFile);
+            }
+            
+            fetch('/admin/add_student', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showResult('studentResult', 'success', 'Студент добавлен успешно');
+                    // Clear form
+                    document.querySelectorAll('.student-form input').forEach(input => input.value = '');
+                } else {
+                    showResult('studentResult', 'error', data.message || 'Ошибка добавления студента');
+                }
+            })
+            .catch(error => {
+                showResult('studentResult', 'error', 'Ошибка: ' + error.message);
+            });
+        }
+        
+        function loadExcel() {
+            const fileInput = document.getElementById('excelFile');
+            const force = document.getElementById('forceLoad').checked;
+            
+            if (!fileInput.files[0]) {
+                showResult('excelResult', 'error', 'Выберите файл Excel');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('token', adminToken);
+            formData.append('excel_file', fileInput.files[0]);
+            formData.append('force', force);
+            
+            fetch('/admin/load_excel', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    const session = data.load_session;
+                    showResult('excelResult', 'success', 
+                        `Загрузка завершена: обработано ${session.records_processed}, добавлено ${session.records_added}, пропущено ${session.records_skipped}`);
+                } else {
+                    showResult('excelResult', 'error', data.message || 'Ошибка загрузки Excel');
+                }
+            })
+            .catch(error => {
+                showResult('excelResult', 'error', 'Ошибка: ' + error.message);
+            });
+        }
+        
+        function rebuildIndex() {
+            if (!confirm('Пересборка индекса может занять несколько минут. Продолжить?')) {
+                return;
+            }
+            
+            fetch('/admin/rebuild_index', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ token: adminToken })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showResult('rebuildResult', 'success', 'Индекс успешно пересобран');
+                } else {
+                    showResult('rebuildResult', 'error', data.message || 'Ошибка пересборки индекса');
+                }
+            })
+            .catch(error => {
+                showResult('rebuildResult', 'error', 'Ошибка: ' + error.message);
+            });
+        }
+        
+        function showResult(elementId, type, message) {
+            const element = document.getElementById(elementId);
+            element.className = `result ${type}`;
+            element.textContent = message;
+            element.style.display = 'block';
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                element.style.display = 'none';
+            }, 5000);
+        }
+    </script>
+</body>
+</html>
